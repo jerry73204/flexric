@@ -29,10 +29,19 @@ else()
   message(FATAL_ERROR "unknown NR_RRC_RELEASE ${NR_RRC_RELEASE}")
 endif()
 
-find_program(ASN1C_EXEC_PATH asn1c HINTS /opt/asn1c/bin)
-set(ASN1C_EXEC ${ASN1C_EXEC_PATH} CACHE FILEPATH "path to asn1c executable")
+# ASN1C_EXEC can be set via -DASN1C_EXEC=/path/to/asn1c
+# If not set, it will search for asn1c in PATH
+if(NOT DEFINED ASN1C_EXEC)
+  find_program(ASN1C_EXEC asn1c)
+  if(NOT ASN1C_EXEC)
+    message(FATAL_ERROR "asn1c not found in PATH. Please install asn1c or set -DASN1C_EXEC=/path/to/asn1c")
+  endif()
+endif()
+# Cache the asn1c path for subsequent builds
+set(ASN1C_EXEC ${ASN1C_EXEC} CACHE FILEPATH "Path to asn1c executable")
 add_custom_command(OUTPUT ${nr_rrc_source} ${nr_rrc_headers}
-  COMMAND ASN1C_PREFIX=NR_ ${ASN1C_EXEC} -pdu=all -fcompound-names -gen-UPER -no-gen-BER -no-gen-JER -no-gen-OER -gen-APER -no-gen-example -findirect-choice -D ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/${NR_RRC_GRAMMAR}
+  COMMAND ASN1C_PREFIX=NR_ ${ASN1C_EXEC} -pdu=all -fcompound-names -no-gen-BER -no-gen-JER -no-gen-OER -no-gen-example -findirect-choice ${CMAKE_CURRENT_SOURCE_DIR}/${NR_RRC_GRAMMAR}
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${NR_RRC_GRAMMAR}
   COMMENT "Generating NR RRC source file from ${CMAKE_CURRENT_SOURCE_DIR}/${NR_RRC_GRAMMAR}"
 )
