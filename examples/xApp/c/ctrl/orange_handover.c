@@ -133,8 +133,8 @@ void gen_List_of_PDU_sessions_for_handover(seq_ran_param_t* List_PDU_sessions_ho
   List_PDU_sessions_ho->ran_param_val.lst->lst_ran_param = calloc(num_PDU_session, sizeof(lst_ran_param_t));
   assert(List_PDU_sessions_ho->ran_param_val.lst->lst_ran_param != NULL && "Memory exhausted");
   
-  // >PDU session Item for handover, STRUCTURE (len 2) 
-  lst_ran_param_t* PDU_session_item = &List_PDU_sessions_ho->ran_param_val.strct->ran_param_struct[0];
+  // >PDU session Item for handover, STRUCTURE (len 2)
+  lst_ran_param_t* PDU_session_item = &List_PDU_sessions_ho->ran_param_val.lst->lst_ran_param[0];
   //PDU_session_item->ran_param_id = PDU_SESSION_ITEM_FOR_HANDOVER_8_4_4_1;
   //PDU_session_item->ran_param_val.type = STRUCTURE_RAN_PARAMETER_VAL_TYPE;
   //PDU_session_item->ran_param_val.strct = calloc(1, sizeof(ran_param_struct_t));
@@ -204,7 +204,7 @@ void gen_List_of_DRBs_for_handover(seq_ran_param_t* List_DRBs_ho )
   assert(List_DRBs_ho->ran_param_val.lst->lst_ran_param != NULL && "Memory exhausted");
 
   // > DRB item for handover, STRUCTURE (len 2)
-  lst_ran_param_t* DRB_item_ho = &List_DRBs_ho->ran_param_val.strct->ran_param_struct[0];
+  lst_ran_param_t* DRB_item_ho = &List_DRBs_ho->ran_param_val.lst->lst_ran_param[0];
   
   DRB_item_ho->ran_param_struct.sz_ran_param_struct = 2;
   DRB_item_ho->ran_param_struct.ran_param_struct = calloc(2, sizeof(seq_ran_param_t));
@@ -273,7 +273,7 @@ void gen_List_of_Secondary_cells_to_be_setup(seq_ran_param_t* List_num_2ndCells)
    // >Secondary cell Item to be setup, STRUCTURE (len 1)
 
 
-  lst_ran_param_t* secCell_item = &List_num_2ndCells->ran_param_val.strct->ran_param_struct[0];
+  lst_ran_param_t* secCell_item = &List_num_2ndCells->ran_param_val.lst->lst_ran_param[0];
   
   secCell_item->ran_param_struct.sz_ran_param_struct = 1;
   secCell_item->ran_param_struct.ran_param_struct = calloc(1, sizeof(seq_ran_param_t));

@@ -394,7 +394,7 @@ void add_neighCell(struct SINRServingValues* UE, const uint16_t neighCellID, con
   }
 }
 
-uint8_t getTargetCellID(callback_data_t data) {
+uint16_t getTargetCellID(callback_data_t data) {
   assert(data.neighCells != NULL);
 
   double max_sinr = MIN_SINR;  // Initialize to minimum acceptable SINR
@@ -1252,7 +1252,7 @@ void forEachCell(Callback targetCellFinding, Callback cbHOAction, Callback cbSwi
            return handover_sent ? 1 : 0;
          }
                
-  uint8_t switchOffCurrentCell(callback_data_t data) {
+  uint16_t switchOffCurrentCell(callback_data_t data) {
     rc_ctrl_req_data_t rc_ctrl = {0};
     ue_id_e2sm_t ue_id = gen_rc_ue_id(GNB_UE_ID_E2SM, data.ueID);
     
