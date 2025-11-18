@@ -175,6 +175,13 @@ static uint32_t current_cell_id = 0;
 static
 void log_int_value(byte_array_t name, meas_record_lst_t meas_record)
 {
+  // DEBUG: Print actual measurement name received
+  printf("[DEBUG] INT measurement name (len=%zu): '", name.len);
+  for (size_t i = 0; i < name.len; i++) {
+    printf("%c", name.buf[i]);
+  }
+  printf("', value=%d\n", meas_record.int_val);
+
   if (cmp_str_ba("RRU.PrbTotDl", name) == 0) {
     printf("RRU.PrbTotDl = %d [PRBs]\n", meas_record.int_val);
   } else if (cmp_str_ba("RRU.PrbTotUl", name) == 0) {
@@ -197,6 +204,13 @@ static double current_dl_throughput = 0.0;
 static
 void log_real_value(byte_array_t name, meas_record_lst_t meas_record)
 {
+  // DEBUG: Print actual measurement name received
+  printf("[DEBUG] REAL measurement name (len=%zu): '", name.len);
+  for (size_t i = 0; i < name.len; i++) {
+    printf("%c", name.buf[i]);
+  }
+  printf("', value=%.2f\n", meas_record.real_val);
+
   if (cmp_str_ba("DRB.RlcSduDelayDl", name) == 0) {
     printf("DRB.RlcSduDelayDl = %.2f [μs]\n", meas_record.real_val);
   } else if (cmp_str_ba("DRB.UEThpDl", name) == 0) {
