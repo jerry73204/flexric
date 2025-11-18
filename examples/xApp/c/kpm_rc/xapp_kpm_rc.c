@@ -218,6 +218,10 @@ void log_real_value(byte_array_t name, meas_record_lst_t meas_record)
     printf("DRB.UEThpDl = %.2f [kbps]\n", current_dl_throughput);
   } else if (cmp_str_ba("DRB.UEThpUl", name) == 0) {
     printf("DRB.UEThpUl = %.2f [kbps]\n", meas_record.real_val);
+  } else if (cmp_str_ba("L3.ServingCell.CellId", name) == 0) {
+    // Phase 1 Quick Fix: Handle Cell ID as REAL type (sent as long but encoded as REAL)
+    current_cell_id = (uint32_t)meas_record.real_val;
+    printf("L3.ServingCell.CellId = %u [id]\n", current_cell_id);
   } else {
     printf("Measurement Name not yet supported\n");
   }
