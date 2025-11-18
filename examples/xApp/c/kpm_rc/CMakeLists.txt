@@ -9,5 +9,6 @@ target_link_libraries(xapp_kpm_rc
                       -pthread
                       -lsctp
                       -ldl
+                      -lcurl
                       )
 

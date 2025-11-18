@@ -30,6 +30,8 @@
 #include <time.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <curl/curl.h>
+#include <string.h>
 
 static
 ue_id_e2sm_t ue_id;
@@ -39,6 +41,87 @@ uint64_t const period_ms = 100;
 
 static
 pthread_mutex_t mtx;
+
+// UE tracking for handover detection
+typedef struct {
+  uint64_t ue_id;
+  uint32_t current_cell_id;
+  uint32_t previous_cell_id;
+  double dl_throughput;
+  bool initialized;
+} ue_tracking_state_t;
+
+#define MAX_UES 100
+static ue_tracking_state_t ue_states[MAX_UES];
+static size_t num_ues = 0;
+
+// Vehicle tracker configuration
+static const char* TRACKER_URL = "http://localhost:8080/api/events";
+
+// HTTP POST to vehicle tracker
+static void send_handover_event(uint64_t ue_id, uint64_t timestamp,
+                                uint32_t source_cell, uint32_t target_cell,
+                                double dl_throughput) {
+  CURL* curl = curl_easy_init();
+  if (!curl) {
+    printf("[TRACKER] Failed to initialize curl\n");
+    return;
+  }
+
+  // Build JSON payload
+  char json_payload[512];
+  snprintf(json_payload, sizeof(json_payload),
+           "{"
+           "\"ue_id\":%lu,"
+           "\"source_cell_id\":%u,"
+           "\"target_cell_id\":%u,"
+           "\"rsrp_source\":-85.0,"  // Placeholder values
+           "\"rsrp_target\":-80.0,"
+           "\"sinr_source\":15.0,"
+           "\"sinr_target\":18.0,"
+           "\"dl_throughput\":%.2f"
+           "}",
+           ue_id, source_cell, target_cell, dl_throughput);
+
+  struct curl_slist* headers = NULL;
+  headers = curl_slist_append(headers, "Content-Type: application/json");
+
+  curl_easy_setopt(curl, CURLOPT_URL, TRACKER_URL);
+  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_payload);
+  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+  curl_easy_setopt(curl, CURLOPT_TIMEOUT, 2L);
+
+  CURLcode res = curl_easy_perform(curl);
+  if (res != CURLE_OK) {
+    printf("[TRACKER] POST failed: %s\n", curl_easy_strerror(res));
+  } else {
+    printf("[TRACKER] Handover event sent: UE %lu, %u -> %u\n",
+           ue_id, source_cell, target_cell);
+  }
+
+  curl_slist_free_all(headers);
+  curl_easy_cleanup(curl);
+}
+
+// Find or create UE tracking state
+static ue_tracking_state_t* get_ue_state(uint64_t ue_id) {
+  // Search for existing UE
+  for (size_t i = 0; i < num_ues; i++) {
+    if (ue_states[i].ue_id == ue_id) {
+      return &ue_states[i];
+    }
+  }
+
+  // Create new UE entry if space available
+  if (num_ues < MAX_UES) {
+    ue_states[num_ues].ue_id = ue_id;
+    ue_states[num_ues].initialized = false;
+    return &ue_states[num_ues++];
+  }
+
+  printf("[TRACKER] Warning: MAX_UES reached, cannot track UE %lu\n", ue_id);
+  return NULL;
+}
 
 static
 void log_gnb_ue_id(ue_id_e2sm_t ue_id)
@@ -86,6 +169,9 @@ log_ue_id log_ue_id_e2sm[END_UE_ID_E2SM] = {
     NULL,
 };
 
+// Global variable to store current cell ID being processed
+static uint32_t current_cell_id = 0;
+
 static
 void log_int_value(byte_array_t name, meas_record_lst_t meas_record)
 {
@@ -97,10 +183,16 @@ void log_int_value(byte_array_t name, meas_record_lst_t meas_record)
     printf("DRB.PdcpSduVolumeDL = %d [kb]\n", meas_record.int_val);
   } else if (cmp_str_ba("DRB.PdcpSduVolumeUL", name) == 0) {
     printf("DRB.PdcpSduVolumeUL = %d [kb]\n", meas_record.int_val);
+  } else if (cmp_str_ba("L3.ServingCell.CellId", name) == 0) {
+    current_cell_id = (uint32_t)meas_record.int_val;
+    printf("L3.ServingCell.CellId = %u [id]\n", current_cell_id);
   } else {
     printf("Measurement Name not yet supported\n");
   }
 }
+
+// Global variable to store current DL throughput being processed
+static double current_dl_throughput = 0.0;
 
 static
 void log_real_value(byte_array_t name, meas_record_lst_t meas_record)
@@ -108,7 +200,8 @@ void log_real_value(byte_array_t name, meas_record_lst_t meas_record)
   if (cmp_str_ba("DRB.RlcSduDelayDl", name) == 0) {
     printf("DRB.RlcSduDelayDl = %.2f [μs]\n", meas_record.real_val);
   } else if (cmp_str_ba("DRB.UEThpDl", name) == 0) {
-    printf("DRB.UEThpDl = %.2f [kbps]\n", meas_record.real_val);
+    current_dl_throughput = meas_record.real_val;
+    printf("DRB.UEThpDl = %.2f [kbps]\n", current_dl_throughput);
   } else if (cmp_str_ba("DRB.UEThpUl", name) == 0) {
     printf("DRB.UEThpUl = %.2f [kbps]\n", meas_record.real_val);
   } else {
@@ -201,7 +294,42 @@ void sm_cb_kpm(sm_ag_if_rd_t const* rd)
 
       // log measurements
       log_kpm_measurements(&msg_frm_3->meas_report_per_ue[i].ind_msg_format_1);
-      
+
+      // Handover detection and vehicle tracker integration
+      if (current_cell_id > 0) {  // Only process if cell ID was captured
+        uint64_t tracked_ue_id = ue_id_e2sm.gnb.amf_ue_ngap_id;
+        ue_tracking_state_t* state = get_ue_state(tracked_ue_id);
+
+        if (state != NULL) {
+          if (!state->initialized) {
+            // First observation of this UE
+            state->current_cell_id = current_cell_id;
+            state->previous_cell_id = current_cell_id;
+            state->dl_throughput = current_dl_throughput;
+            state->initialized = true;
+            printf("[TRACKER] Tracking UE %lu, initial cell %u\n",
+                   tracked_ue_id, current_cell_id);
+          } else if (state->current_cell_id != current_cell_id) {
+            // Handover detected!
+            printf("[TRACKER] Handover detected: UE %lu, %u -> %u\n",
+                   tracked_ue_id, state->current_cell_id, current_cell_id);
+
+            // Send handover event to vehicle tracker
+            send_handover_event(tracked_ue_id, now,
+                              state->current_cell_id,  // source
+                              current_cell_id,         // target
+                              current_dl_throughput);
+
+            // Update state
+            state->previous_cell_id = state->current_cell_id;
+            state->current_cell_id = current_cell_id;
+          }
+
+          // Always update throughput
+          state->dl_throughput = current_dl_throughput;
+        }
+      }
+
     }
     counter++;
   }
