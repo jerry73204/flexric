@@ -269,7 +269,7 @@ void log_kpm_measurements(kpm_ind_msg_format_1_t const* msg_frm_1)
     meas_data_lst_t const data_item = msg_frm_1->meas_data_lst[j];
 
     for (size_t z = 0; z < data_item.meas_record_len; z++) {
-      meas_type_t const meas_type = msg_frm_1->meas_info_lst[z].meas_type;
+      meas_type_t const meas_type = msg_frm_1->meas_info_lst[j].meas_type;
       meas_record_lst_t const record_item = data_item.meas_record_lst[z];
 
       match_meas_type[meas_type.type](meas_type, record_item);
