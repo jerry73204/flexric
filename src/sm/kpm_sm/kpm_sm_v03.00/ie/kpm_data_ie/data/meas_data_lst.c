@@ -84,16 +84,22 @@ bool eq_meas_data_lst(meas_data_lst_t const* m0, meas_data_lst_t const* m1)
 meas_data_lst_t cp_meas_data_lst(meas_data_lst_t const* src)
 {
   assert(src != NULL);
-  meas_data_lst_t dst = {0}; 
+  meas_data_lst_t dst = {0};
 
-  // [1, 65535]
-  assert(src->meas_record_len > 0 && src->meas_record_len <  65535);
-  dst.meas_record_len = src->meas_record_len;	
-  dst.meas_record_lst = calloc(dst.meas_record_len, sizeof(meas_record_lst_t));
-  assert(dst.meas_record_lst != NULL && "Memory exhausted");
+  // [0, 65535] - can be 0 for cells with no UEs attached
+  assert(src->meas_record_len < 65535);
+  dst.meas_record_len = src->meas_record_len;
 
-  for(size_t i = 0; i < dst.meas_record_len; ++i){
-   dst.meas_record_lst[i] = cp_meas_record_lst(&src->meas_record_lst[i]);   
+  // Only allocate and copy if there are records
+  if (dst.meas_record_len > 0) {
+    dst.meas_record_lst = calloc(dst.meas_record_len, sizeof(meas_record_lst_t));
+    assert(dst.meas_record_lst != NULL && "Memory exhausted");
+
+    for(size_t i = 0; i < dst.meas_record_len; ++i){
+      dst.meas_record_lst[i] = cp_meas_record_lst(&src->meas_record_lst[i]);
+    }
+  } else {
+    dst.meas_record_lst = NULL;
   }
 
   if(src->incomplete_flag != NULL){

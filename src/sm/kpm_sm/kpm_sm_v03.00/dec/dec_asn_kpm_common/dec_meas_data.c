@@ -15,10 +15,19 @@ meas_data_lst_t * kpm_dec_meas_data_asn(const MeasurementData_t meas_data_asn, c
     {
         MeasurementDataItem_t * data_item_asn = meas_data_asn.list.array[i];
         
-        // Measurement Record : [1, 2147483647]
+        // Measurement Record : [0, 2147483647] - can be 0 for cells with no UEs
         meas_data[i].meas_record_len = data_item_asn->measRecord.list.count;
-        assert(meas_data[i].meas_record_len >= 1 && meas_data[i].meas_record_len <= maxnoofMeasurementValue);
-        meas_data[i].meas_record_lst = calloc(meas_data[i].meas_record_len, sizeof(meas_record_lst_t));
+        assert(meas_data[i].meas_record_len <= maxnoofMeasurementValue);
+
+        // Only allocate and process if there are measurement records
+        if (meas_data[i].meas_record_len > 0)
+        {
+            meas_data[i].meas_record_lst = calloc(meas_data[i].meas_record_len, sizeof(meas_record_lst_t));
+        }
+        else
+        {
+            meas_data[i].meas_record_lst = NULL;
+        }
 
         for (size_t j = 0; j<meas_data[i].meas_record_len; j++)
         {
@@ -55,10 +64,7 @@ meas_data_lst_t * kpm_dec_meas_data_asn(const MeasurementData_t meas_data_asn, c
             assert(meas_data[i].incomplete_flag != NULL && "Memory exhausted");
             *meas_data[i].incomplete_flag = TRUE_ENUM_VALUE;
         }
-        else
-        {
-            assert(meas_data[i].incomplete_flag == TRUE_ENUM_VALUE && "has only one value (true)");
-        }
+        // else: incomplete_flag stays NULL (calloc initialized), which is valid for optional field
 
 
     }

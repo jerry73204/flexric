@@ -19,8 +19,8 @@ MeasurementData_t kpm_enc_meas_data_asn(const meas_data_lst_t * meas_data, const
         assert(mData != NULL && "Memory exhausted");
 
 
-        // Measurement Record : [1, 2147483647]
-        assert((meas_data[i].meas_record_len <= maxnoofMeasurementValue && meas_data[i].meas_record_len >= 1) 
+        // Measurement Record : [0, 2147483647] - can be 0 for cells with no UEs
+        assert(meas_data[i].meas_record_len <= maxnoofMeasurementValue
               && "Number of measures not allowed");
 
         for (size_t j = 0; j<meas_data[i].meas_record_len; j++)
