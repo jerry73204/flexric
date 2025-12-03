@@ -68,20 +68,29 @@ static void send_handover_event(uint64_t ue_id, uint64_t timestamp,
     return;
   }
 
-  // Build JSON payload
+  // Build JSON payload with timestamp
+  // If timestamp is 0, use current time in microseconds
+  uint64_t ts = timestamp;
+  if (ts == 0) {
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    ts = (uint64_t)now.tv_sec * 1000000ULL + (uint64_t)now.tv_nsec / 1000ULL;
+  }
+
   char json_payload[512];
   snprintf(json_payload, sizeof(json_payload),
            "{"
            "\"ue_id\":%lu,"
+           "\"timestamp\":%lu,"
            "\"source_cell_id\":%u,"
            "\"target_cell_id\":%u,"
-           "\"rsrp_source\":-85.0,"  // Placeholder values
+           "\"rsrp_source\":-85.0,"
            "\"rsrp_target\":-80.0,"
            "\"sinr_source\":15.0,"
            "\"sinr_target\":18.0,"
            "\"dl_throughput\":%.2f"
            "}",
-           ue_id, source_cell, target_cell, dl_throughput);
+           ue_id, ts, source_cell, target_cell, dl_throughput);
 
   struct curl_slist* headers = NULL;
   headers = curl_slist_append(headers, "Content-Type: application/json");
